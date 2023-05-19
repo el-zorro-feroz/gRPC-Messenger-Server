@@ -6,5 +6,8 @@ import (
 )
 
 type UserRepository interface {
-	GetByEmail(context.Context, string) (entities.User, error)
+	Create(c context.Context, user *entities.User) error
+	Fetch(c context.Context) ([]entities.User, error)
+	GetByEmail(c context.Context, email string) (entities.User, error)
+	GetByID(c context.Context, id string) (entities.User, error)
 }
