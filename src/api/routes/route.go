@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(timeout time.Duration, gin *gin.Engine) {
+func Setup(timeout time.Duration, gin *gin.Engine) error {
 	publicRouter := gin.Group("")
 
 	NewSignupRouter(timeout, publicRouter)
@@ -21,4 +21,6 @@ func Setup(timeout time.Duration, gin *gin.Engine) {
 	protectedRouter.Use(middleware.JwtMiddleware(accessTokenSecret))
 
 	NewProfileRouter(timeout, protectedRouter)
+
+	return nil
 }
