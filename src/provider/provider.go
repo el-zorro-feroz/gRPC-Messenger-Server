@@ -2,9 +2,15 @@ package provider
 
 import (
 	controller "main/src/api/controllers"
+	domain "main/src/domain/repositories"
 	usecase "main/src/domain/usecases"
 
 	"go.uber.org/fx"
+)
+
+// UserRepository .
+var UserRepository = fx.Options(
+	fx.Provide(domain.NewSqliteUserRepository),
 )
 
 // UsecaseModule .

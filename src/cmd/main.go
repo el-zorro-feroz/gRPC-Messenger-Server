@@ -16,7 +16,7 @@ func registerHooks(lifecycle fx.Lifecycle, routes routes.Routes) {
 	lifecycle.Append(
 		fx.Hook{
 			OnStart: func(context.Context) error {
-				log.Print("Starting server.")
+				log.Print("Starting server")
 
 				engine, err := routes.Setup()
 				if err != nil {
@@ -30,8 +30,8 @@ func registerHooks(lifecycle fx.Lifecycle, routes routes.Routes) {
 
 				return nil
 			},
-			OnStop: func(context.Context) error {
-				log.Print("Stopping server.")
+			OnStop: func(ctx context.Context) error {
+				log.Print("Stopping server")
 				return nil
 			},
 		},
@@ -46,6 +46,7 @@ func RunServer() error {
 
 	app := fx.New(
 		fx.Provide(NewLogger),
+		provider.UserRepository,
 		provider.UsecaseModule,
 		provider.ControllerModule,
 		fx.Provide(routes.NewRoutes),

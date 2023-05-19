@@ -3,3 +3,6 @@
 
 # Congig related
 .env
+
+# SQLite related
+database.sqlite3
