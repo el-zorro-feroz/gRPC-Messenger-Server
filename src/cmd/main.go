@@ -7,30 +7,26 @@ import (
 	"main/src/provider"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go.uber.org/fx"
 )
 
-func registerHooks(lifecycle fx.Lifecycle) {
+func registerHooks(lifecycle fx.Lifecycle, routes routes.Routes) {
 	lifecycle.Append(
 		fx.Hook{
 			OnStart: func(context.Context) error {
 				log.Print("Starting server.")
 
-				timeout := time.Duration(2) * time.Second
-				gin := gin.Default()
-
-				if err := routes.Setup(timeout, gin); err != nil {
+				engine, err := routes.Setup()
+				if err != nil {
 					return err
 				}
 
 				serverAddr := os.Getenv("SERVER_ADDR")
 				serverPort := os.Getenv("SERVER_PORT")
 
-				gin.Run(strings.Join([]string{serverAddr, serverPort}, ":"))
+				engine.Run(strings.Join([]string{serverAddr, serverPort}, ":"))
 
 				return nil
 			},
@@ -51,6 +47,8 @@ func RunServer() error {
 	app := fx.New(
 		fx.Provide(NewLogger),
 		provider.UsecaseModule,
+		provider.ControllerModule,
+		fx.Provide(routes.NewRoutes),
 		fx.Invoke(registerHooks),
 	)
 	app.Run()

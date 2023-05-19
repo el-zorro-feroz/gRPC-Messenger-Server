@@ -12,72 +12,70 @@ import (
 )
 
 type LoginController interface {
-	Login() error
+	Login(context *gin.Context)
 }
 
 type loginController struct {
 	loginUsecase usecase.LoginUsecase
-	context      *gin.Context
 }
 
-func NewLoginController(usecase usecase.LoginUsecase, context *gin.Context) LoginController {
+func NewLoginController(usecase usecase.LoginUsecase) LoginController {
 	return &loginController{
 		loginUsecase: usecase,
-		context:      context,
 	}
 }
 
-func (lc *loginController) Login() error {
+func (lc *loginController) Login(context *gin.Context) {
 	var request entities.LoginRequest
 
-	err := lc.context.ShouldBind(&request)
+	err := context.ShouldBind(&request)
 	if err != nil {
-		lc.context.JSON(
+		context.JSON(
 			http.StatusBadRequest,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
-	user, err := lc.loginUsecase.GetUserByEmail(lc.context, request.Email)
+	user, err := lc.loginUsecase.GetUserByEmail(context, request.Email, http.DefaultClient.Timeout)
 	if err != nil {
-		lc.context.JSON(
+		context.JSON(
 			http.StatusNotFound,
 			entities.ErrorResponse{
 				Message: "User Not Found",
 			},
 		)
 
-		return err
+		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password))
 	if err != nil {
-		lc.context.JSON(
+		context.JSON(
 			http.StatusUnauthorized,
 			entities.ErrorResponse{
 				Message: "Invalid Credentials",
 			},
 		)
 
-		return err
+		return
 	}
 
 	accessTokenSecret := os.Getenv("SERVER_SECRET")
 	accessTokenExpiryHoursStr := os.Getenv("SERVER_SECRET_EXP")
 	accessTokenExpiryHours, err := strconv.Atoi(accessTokenExpiryHoursStr)
 	if err != nil {
-		lc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: "Internal Error",
 			},
 		)
 
-		return err
+		return
 	}
 
 	accessToken, err := lc.loginUsecase.CreateAccessToken(
@@ -86,28 +84,28 @@ func (lc *loginController) Login() error {
 		accessTokenExpiryHours,
 	)
 	if err != nil {
-		lc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	refreshTokenSecret := os.Getenv("SERVER_REFRESH_SECRET")
 	refreshTokenExpiryHoursStr := os.Getenv("SERVER_REFRESH_SECRET_EXP")
 	refreshTokenExpiryHours, err := strconv.Atoi(refreshTokenExpiryHoursStr)
 	if err != nil {
-		lc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: "Internal Error",
 			},
 		)
 
-		return err
+		return
 	}
 
 	refreshToken, err := lc.loginUsecase.CreateRefreshToken(
@@ -116,14 +114,14 @@ func (lc *loginController) Login() error {
 		refreshTokenExpiryHours,
 	)
 	if err != nil {
-		lc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	loginResponse := entities.LoginResponse{
@@ -131,10 +129,8 @@ func (lc *loginController) Login() error {
 		RefreshToken: refreshToken,
 	}
 
-	lc.context.JSON(
+	context.JSON(
 		http.StatusOK,
 		loginResponse,
 	)
-
-	return nil
 }

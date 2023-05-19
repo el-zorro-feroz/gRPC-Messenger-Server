@@ -9,7 +9,7 @@ import (
 )
 
 type ProfileController interface {
-	Fetch() error
+	Fetch(context *gin.Context)
 }
 
 type profileController struct {
@@ -17,17 +17,16 @@ type profileController struct {
 	context        *gin.Context
 }
 
-func NewProfileController(usecase usecase.ProfileUsecase, context *gin.Context) ProfileController {
+func NewProfileController(usecase usecase.ProfileUsecase) ProfileController {
 	return &profileController{
 		profileUsecase: usecase,
-		context:        context,
 	}
 }
 
-func (pc *profileController) Fetch() error {
+func (pc *profileController) Fetch(context *gin.Context) {
 	userID := pc.context.GetString("x-user-id")
 
-	profile, err := pc.profileUsecase.GetProfileByID(pc.context, userID)
+	profile, err := pc.profileUsecase.GetProfileByID(pc.context, userID, http.DefaultClient.Timeout)
 	if err != nil {
 		pc.context.JSON(
 			http.StatusInternalServerError,
@@ -36,13 +35,11 @@ func (pc *profileController) Fetch() error {
 			},
 		)
 
-		return err
+		return
 	}
 
 	pc.context.JSON(
 		http.StatusOK,
 		profile,
 	)
-
-	return nil
 }

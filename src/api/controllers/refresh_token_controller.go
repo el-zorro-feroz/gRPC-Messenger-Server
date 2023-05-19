@@ -11,48 +11,46 @@ import (
 )
 
 type RefreshTokenController interface {
-	RefreshToken() error
+	RefreshToken(context *gin.Context)
 }
 
 type refreshTokenController struct {
 	refreshTokenUsecase usecase.RefreshTokenUsecase
-	context             *gin.Context
 }
 
-func NewRefreshTokenUsecase(usecase usecase.RefreshTokenUsecase, context *gin.Context) RefreshTokenController {
+func NewRefreshTokenUsecase(usecase usecase.RefreshTokenUsecase) RefreshTokenController {
 	return &refreshTokenController{
 		refreshTokenUsecase: usecase,
-		context:             context,
 	}
 }
 
-func (rtc *refreshTokenController) RefreshToken() error {
+func (rtc *refreshTokenController) RefreshToken(context *gin.Context) {
 	var request entities.RefreshTokenRequest
 
-	err := rtc.context.ShouldBind(&request)
+	err := context.ShouldBind(&request)
 	if err != nil {
-		rtc.context.JSON(
+		context.JSON(
 			http.StatusBadRequest,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	refreshTokenSecret := os.Getenv("SERVER_REFRESH_SECRET")
 	refreshTokenExpiryHoursStr := os.Getenv("SERVER_REFRESH_SECRET_EXP")
 	refreshTokenExpiryHours, err := strconv.Atoi(refreshTokenExpiryHoursStr)
 	if err != nil {
-		rtc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: "Internal Error",
 			},
 		)
 
-		return err
+		return
 	}
 
 	id, err := rtc.refreshTokenUsecase.ExtractIDFromToken(
@@ -60,40 +58,40 @@ func (rtc *refreshTokenController) RefreshToken() error {
 		refreshTokenSecret,
 	)
 	if err != nil {
-		rtc.context.JSON(
+		context.JSON(
 			http.StatusUnauthorized,
 			entities.ErrorResponse{
 				Message: "User not found",
 			},
 		)
 
-		return err
+		return
 	}
 
-	user, err := rtc.refreshTokenUsecase.GetUserByID(rtc.context, id)
+	user, err := rtc.refreshTokenUsecase.GetUserByID(context, id, http.DefaultClient.Timeout)
 	if err != nil {
-		rtc.context.JSON(
+		context.JSON(
 			http.StatusUnauthorized,
 			entities.ErrorResponse{
 				Message: "User not found",
 			},
 		)
 
-		return err
+		return
 	}
 
 	accessTokenSecret := os.Getenv("SERVER_SECRET")
 	accessTokenExpiryHoursStr := os.Getenv("SERVER_SECRET_EXP")
 	accessTokenExpiryHours, err := strconv.Atoi(accessTokenExpiryHoursStr)
 	if err != nil {
-		rtc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: "Internal Error",
 			},
 		)
 
-		return err
+		return
 	}
 
 	accessToken, err := rtc.refreshTokenUsecase.CreateAccessToken(
@@ -102,14 +100,14 @@ func (rtc *refreshTokenController) RefreshToken() error {
 		accessTokenExpiryHours,
 	)
 	if err != nil {
-		rtc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	refreshToken, err := rtc.refreshTokenUsecase.CreateRefreshToken(
@@ -118,14 +116,14 @@ func (rtc *refreshTokenController) RefreshToken() error {
 		refreshTokenExpiryHours,
 	)
 	if err != nil {
-		rtc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	refreshTokenResponse := entities.RefreshTokenResponse{
@@ -133,10 +131,8 @@ func (rtc *refreshTokenController) RefreshToken() error {
 		RefreshToken: refreshToken,
 	}
 
-	rtc.context.JSON(
+	context.JSON(
 		http.StatusOK,
 		refreshTokenResponse,
 	)
-
-	return nil
 }

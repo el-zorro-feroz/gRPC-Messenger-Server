@@ -9,7 +9,7 @@ import (
 )
 
 type RefreshTokenUsecase interface {
-	GetUserByID(c context.Context, email string) (entities.User, error)
+	GetUserByID(c context.Context, email string, timeout time.Duration) (entities.User, error)
 	CreateAccessToken(user *entities.User, secret string, expiry int) (accessToken string, err error)
 	CreateRefreshToken(user *entities.User, secret string, expiry int) (refreshToken string, err error)
 	ExtractIDFromToken(requestToken string, secret string) (string, error)
@@ -17,18 +17,16 @@ type RefreshTokenUsecase interface {
 
 type refreshTokenUsecase struct {
 	userRepository domain.UserRepository
-	contextTimeout time.Duration
 }
 
-func NewRefreshTokenUsecase(userRepository domain.UserRepository, timeout time.Duration) RefreshTokenUsecase {
+func NewRefreshTokenUsecase(userRepository domain.UserRepository) RefreshTokenUsecase {
 	return &refreshTokenUsecase{
 		userRepository: userRepository,
-		contextTimeout: timeout,
 	}
 }
 
-func (rtu *refreshTokenUsecase) GetUserByID(c context.Context, email string) (entities.User, error) {
-	ctx, cancel := context.WithTimeout(c, rtu.contextTimeout)
+func (rtu *refreshTokenUsecase) GetUserByID(c context.Context, email string, timeout time.Duration) (entities.User, error) {
+	ctx, cancel := context.WithTimeout(c, timeout)
 	defer cancel()
 	return rtu.userRepository.GetByID(ctx, email)
 }

@@ -13,46 +13,44 @@ import (
 )
 
 type SignupController interface {
-	Signup() error
+	Signup(context *gin.Context)
 }
 
 type signupController struct {
 	signupUsecase usecase.SignupUsecase
-	context       *gin.Context
 }
 
-func NewSignupController(usecase usecase.SignupUsecase, context *gin.Context) SignupController {
+func NewSignupController(usecase usecase.SignupUsecase) SignupController {
 	return &signupController{
 		signupUsecase: usecase,
-		context:       context,
 	}
 }
 
-func (sc *signupController) Signup() error {
+func (sc *signupController) Signup(context *gin.Context) {
 	var request entities.SignupRequest
 
-	err := sc.context.ShouldBind(&request)
+	err := context.ShouldBind(&request)
 	if err != nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusBadRequest,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
-	_, err = sc.signupUsecase.GetUserByEmail(sc.context, request.Email)
+	_, err = sc.signupUsecase.GetUserByEmail(context, request.Email, http.DefaultClient.Timeout)
 	if err == nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusConflict,
 			entities.ErrorResponse{
 				Message: "User already exists",
 			},
 		)
 
-		return err
+		return
 	}
 
 	encryptedPassword, err := bcrypt.GenerateFromPassword(
@@ -60,14 +58,14 @@ func (sc *signupController) Signup() error {
 		bcrypt.DefaultCost,
 	)
 	if err != nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	request.Password = string(encryptedPassword)
@@ -79,33 +77,30 @@ func (sc *signupController) Signup() error {
 		Password: request.Password,
 	}
 
-	err = sc.signupUsecase.Signup(
-		sc.context,
-		&user,
-	)
+	err = sc.signupUsecase.Signup(context, &user, http.DefaultClient.Timeout)
 	if err != nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	accessTokenSecret := os.Getenv("SERVER_SECRET")
 	accessTokenExpiryHoursStr := os.Getenv("SERVER_SECRET_EXP")
 	accessTokenExpiryHours, err := strconv.Atoi(accessTokenExpiryHoursStr)
 	if err != nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: "Internal Error",
 			},
 		)
 
-		return err
+		return
 	}
 
 	accessToken, err := sc.signupUsecase.CreateAccessToken(
@@ -114,28 +109,28 @@ func (sc *signupController) Signup() error {
 		accessTokenExpiryHours,
 	)
 	if err != nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	refreshTokenSecret := os.Getenv("SERVER_REFRESH_SECRET")
 	refreshTokenExpiryHoursStr := os.Getenv("SERVER_REFRESH_SECRET_EXP")
 	refreshTokenExpiryHours, err := strconv.Atoi(refreshTokenExpiryHoursStr)
 	if err != nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: "Internal Error",
 			},
 		)
 
-		return err
+		return
 	}
 
 	refreshToken, err := sc.signupUsecase.CreateRefreshToken(
@@ -144,14 +139,14 @@ func (sc *signupController) Signup() error {
 		refreshTokenExpiryHours,
 	)
 	if err != nil {
-		sc.context.JSON(
+		context.JSON(
 			http.StatusInternalServerError,
 			entities.ErrorResponse{
 				Message: err.Error(),
 			},
 		)
 
-		return err
+		return
 	}
 
 	signupResponse := entities.SignupResponse{
@@ -159,10 +154,8 @@ func (sc *signupController) Signup() error {
 		RefreshToken: refreshToken,
 	}
 
-	sc.context.JSON(
+	context.JSON(
 		http.StatusOK,
 		signupResponse,
 	)
-
-	return nil
 }
