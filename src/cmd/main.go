@@ -6,6 +6,7 @@ import (
 	"main/src/api/routes"
 	"main/src/provider"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,11 @@ func registerHooks(lifecycle fx.Lifecycle) {
 				if err := routes.Setup(timeout, gin); err != nil {
 					return err
 				}
+
+				serverAddr := os.Getenv("SERVER_ADDR")
+				serverPort := os.Getenv("SERVER_PORT")
+
+				gin.Run(strings.Join([]string{serverAddr, serverPort}, ":"))
 
 				return nil
 			},
