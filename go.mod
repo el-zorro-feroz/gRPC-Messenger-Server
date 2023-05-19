@@ -3,10 +3,11 @@ module main
 go 1.20
 
 require (
+	github.com/google/uuid v1.3.0
+	github.com/gin-gonic/gin v1.9.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/fx v1.19.3
-	github.com/gin-gonic/gin v1.9.0
 )
 
 require (
